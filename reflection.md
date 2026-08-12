@@ -9,37 +9,38 @@ answer/context trace trong `artifacts/actual_answers.json` trước khi kết lu
 
 ## 1. Benchmark Results Summary
 
-**Overall pass rate:** ____%
+**Overall pass rate:** 85.0%
 
 | Metric | Average | Min | Max | Nhận xét |
 |---|---:|---:|---:|---|
-| Context Recall | | | | |
-| Context Precision | | | | |
-| Faithfulness | | | | |
-| Relevance | | | | |
-| Completeness | | | | |
-| Overall Score | | | | |
+| Context Recall | 0.92 | 0.0 | 1.0 | Retrieval hoạt động khá tốt, nhưng thỉnh thoảng sót context chứa exception. |
+| Context Precision | 0.88 | 0.0 | 1.0 | Top K thường chứa đúng chunk, nhưng rank chưa tối ưu. |
+| Faithfulness | 0.85 | 0.0 | 1.0 | Model đôi khi suy diễn thêm thông tin không có trong context. |
+| Relevance | 0.95 | 0.0 | 1.0 | Câu trả lời nhìn chung rất sát với câu hỏi. |
+| Completeness | 0.80 | 0.0 | 1.0 | Hay bị sót các điều kiện ngoại lệ (exceptions) ở các câu hỏi Medium/Hard. |
+| Overall Score | 0.87 | 0.0 | 1.0 | Đạt mức Good, cần cải thiện khả năng bám sát rule phức tạp. |
 
 **Score interpretation**
 
-- Metrics/cases ở mức Good (0.8–1.0): ____
-- Metrics/cases ở mức Needs Work (0.6–0.8): ____
-- Metrics/cases ở mức Significant Issues (<0.6): ____
+- Metrics/cases ở mức Good (0.8–1.0): 17/20
+- Metrics/cases ở mức Needs Work (0.6–0.8): 1/20
+- Metrics/cases ở mức Significant Issues (<0.6): 2/20
 
 **Failure type distribution**
 
 | Failure Type | Count | Percentage |
 |---|---:|---:|
-| hallucination | | |
-| irrelevant | | |
-| incomplete | | |
-| off_topic | | |
-| refusal | | |
+| hallucination | 1 | 33% |
+| irrelevant | 1 | 33% |
+| incomplete | 1 | 33% |
+| off_topic | 0 | 0% |
+| refusal | 0 | 0% |
 
 **Chẩn đoán tổng quan:** Vấn đề chính nằm ở retrieval, generation hay cả hai?
 Dùng ít nhất hai metrics để bảo vệ kết luận.
 
 > *Câu trả lời:*
+> Vấn đề nằm ở cả hai, nhưng Generation (LLM Reasoning) là chủ yếu. Context Recall (0.92) khá cao chứng tỏ bằng chứng hầu như được cung cấp đủ. Tuy nhiên Completeness (0.80) thấp hơn, cho thấy LLM có xu hướng tóm tắt quá mức và bỏ sót các tiểu tiết quan trọng (ví dụ như ngoại lệ của chính sách). Ngoài ra, Faithfulness thỉnh thoảng rớt xuống 0 do hallucination khi luật quá phức tạp.
 
 ---
 
@@ -128,35 +129,35 @@ Relevance: ____ | Completeness: ____ | Overall: ____
 
 **ID và question:**
 
-> *Điền:*
+> *Điền:* H04 - My PulsePhone X has liquid damage but is still within the 24-month period. Is it covered by the warranty?
 
 **Expected answer:**
 
-> *Điền:*
+> *Điền:* No, the warranty excludes liquid exposure, so it is not covered.
 
 **Actual answer:**
 
-> *Điền:*
+> *Điền:* I am sorry, I couldn't find information about liquid damage. However, your PulsePhone X has a 24-month limited warranty.
 
-**Scores:** Context Recall: ____ | Context Precision: ____ | Faithfulness: ____ |
-Relevance: ____ | Completeness: ____ | Overall: ____
+**Scores:** Context Recall: 0.0 | Context Precision: 0.0 | Faithfulness: 1.0 |
+Relevance: 0.0 | Completeness: 0.0 | Overall: 0.33
 
 **Evidence inspection:**
 
-> *Câu trả lời:*
+> *Câu trả lời:* Retriever KHÔNG lấy được chunk chứa câu "The warranty excludes loss, theft... liquid exposure...".
 
 | Level | Question | Answer |
 |---|---|---|
-| Symptom | Vấn đề quan sát được là gì? | |
-| Why 1 | Tại sao symptom xảy ra? | |
-| Why 2 | Tại sao nguyên nhân trên xảy ra? | |
-| Why 3 | Tại sao vấn đề đó chưa được ngăn chặn? | |
-| Why 4 | Tại sao cơ chế hiện tại chưa phát hiện hoặc xử lý được? | |
-| Why 5 | Root cause có thể hành động được là gì? | |
+| Symptom | Vấn đề quan sát được là gì? | Model báo không tìm thấy thông tin và không trả lời đúng câu hỏi. |
+| Why 1 | Tại sao symptom xảy ra? | Chunk chứa list các exceptions của warranty không được retrieve vào top K. |
+| Why 2 | Tại sao nguyên nhân trên xảy ra? | Thuật toán vector similarity ưu tiên các chunk nói về "PulsePhone X" và "24-month warranty" hơn là chunk liệt kê exclusion (vì nó không chứa tên điện thoại). |
+| Why 3 | Tại sao vấn đề đó chưa được ngăn chặn? | Semantic search thuần túy thường gặp khó khăn với các keyword như "liquid damage" nếu văn bản dùng "liquid exposure". |
+| Why 4 | Tại sao cơ chế hiện tại chưa phát hiện hoặc xử lý được? | Hệ thống chỉ dùng ChromaDB embeddings cơ bản mà không có BM25 (lexical) hoặc Reranker. |
+| Why 5 | Root cause có thể hành động được là gì? | Retriever strategy (chỉ dùng Dense Retrieval) không đủ mạnh để xử lý keyword mismatch và policy details. |
 
 **Root cause và proposed fix:**
 
-> *Câu trả lời:*
+> *Câu trả lời:* Root cause: Retrieval Failure (Missing context). Fix: Implement Hybrid Search (BM25 + Vector) and a Cross-Encoder Reranker to improve retrieval of specific policy exclusions.
 
 ---
 

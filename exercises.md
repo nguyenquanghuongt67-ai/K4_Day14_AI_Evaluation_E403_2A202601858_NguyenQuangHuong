@@ -30,11 +30,11 @@ critical.
 
 | Metric | Acceptable Low Score Scenario | Critical Low Score Scenario | Action Required |
 |---|---|---|---|
-| Faithfulness | | | |
-| Answer Relevance | | | |
-| Context Recall | | | |
-| Context Precision | | | |
-| Completeness | | | |
+| Faithfulness | Minor hallucinatory details that don't affect main point | Complete hallucination of core facts | Check LLM prompt & temp |
+| Answer Relevance | Answer has slight fluff but directly answers | Answer avoids question entirely | Improve retrieval/prompt |
+| Context Recall | Misses a minor supporting detail | Misses the core evidence required to answer | Fix BM25/Vector DB chunking |
+| Context Precision | Relevant chunk is second or third | Relevant chunk is buried at rank 10+ | Implement reranker |
+| Completeness | Answer covers main points but lacks minor nuance | Misses critical condition or exception | Tell LLM to be exhaustive |
 
 ### Exercise 1.2 — Bias trong LLM-as-a-Judge
 
@@ -47,14 +47,17 @@ Ba bias thường gặp:
 **Câu 1: Thiết kế experiment phát hiện position bias với ít nhất hai conditions.**
 
 > *Câu trả lời:*
+> Swap order of contexts or swap the position of reference answer / generated answer in the prompt to see if the LLM judge changes its score simply based on which one appears first.
 
 **Câu 2: Làm thế nào giảm verbosity bias bằng rubric design?**
 
 > *Câu trả lời:*
+> Design the rubric to explicitly instruct the judge to penalize unnecessary verbosity and reward concise, direct answers. Include examples in the rubric.
 
 **Câu 3: Tại sao cần calibrate LLM judge với human labels?**
 
 > *Câu trả lời:*
+> Because LLMs can drift or exhibit systemic bias. Human labels provide a ground truth to ensure the LLM's scores correlate highly with human judgment.
 
 ### Exercise 1.3 — Evaluation trong CI/CD
 
@@ -62,13 +65,16 @@ Ba bias thường gặp:
 
 | Metric | Threshold | Lý do |
 |---|---:|---|
-| Faithfulness | | |
-| Answer Relevance | | |
-| Completeness | | |
+| Faithfulness | 0.95 | Hallucination is unacceptable in customer support |
+| Answer Relevance | 0.85 | High relevance needed for UX |
+| Completeness | 0.85 | Must cover all core rules/exceptions |
 
 **Câu 2: Khi nào dùng offline evaluation, online evaluation và human review?**
 
 > *Câu trả lời:*
+> - **Offline eval**: during dev, CI/CD, before deployment.
+> - **Online eval**: monitoring in production via user feedback or shadow mode.
+> - **Human review**: for auditing, calibrating LLM judge, and handling critical failures.
 
 ---
 
@@ -146,31 +152,34 @@ và quyết định thiết kế, không chép lại toàn bộ QA.
 
 | Hạng mục | Kết quả |
 |---|---|
-| Tổng số records | ____ / 20 |
-| Easy | ____ / 5 |
-| Medium | ____ / 7 |
-| Hard | ____ / 5 |
-| Adversarial | ____ / 3 |
-| Source documents được sử dụng | ____ / 10 |
-| Validator status | PASS / FAIL |
+| Tổng số records | 20 / 20 |
+| Easy | 5 / 5 |
+| Medium | 7 / 7 |
+| Hard | 5 / 5 |
+| Adversarial | 3 / 3 |
+| Source documents được sử dụng | 10 / 10 |
+| Validator status | PASS |
 
 **Ba case đại diện cho quyết định thiết kế**
 
 | ID | Difficulty | Source document(s) | Vì sao case phù hợp với difficulty/attack type? |
 |---|---|---|---|
-| | | | |
+| E02 | easy | 01_product_catalog.md | Trả lời trực tiếp bằng một câu trong văn bản, không suy luận phức tạp. |
+| M06 | medium | 01_product_catalog.md, 05_returns_and_exchanges.md | Cần tổng hợp định nghĩa hygiene từ doc 1 và policy từ doc 5. |
+| H02 | hard | 03_promotions_and_membership.md, 09_escalation_and_policy_updates.md | Yêu cầu hiểu rõ policy version và exceptions (membership không extend cho opened device). |
 | | | | |
 | | | | |
 
 **Điểm khó nhất khi xây dựng expected answer hoặc evidence là gì?**
 
 > *Câu trả lời:*
+> Điểm khó nhất là bám sát tuyệt đối vào corpus và trích xuất `exact substring` cho evidence mà không bỏ sót context quan trọng, nhất là các câu Hard có exceptions.
 
 **Xác nhận:**
 
-- [ ] Mọi claim trong expected answer đều có evidence hỗ trợ.
-- [ ] Không có questions trùng ý và không dùng kiến thức ngoài corpus.
-- [ ] `python validate_golden_dataset.py` báo `PASS`.
+- [x] Mọi claim trong expected answer đều có evidence hỗ trợ.
+- [x] Không có questions trùng ý và không dùng kiến thức ngoài corpus.
+- [x] `python validate_golden_dataset.py` báo `PASS`.
 
 ### Exercise 3.2 — Benchmark Run
 
